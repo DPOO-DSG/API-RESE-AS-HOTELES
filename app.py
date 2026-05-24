@@ -48,19 +48,28 @@ def rf1_crear_resena():
         if campo not in data:
             return jsonify({"error": f"Falta el campo: {campo}"}), 400
 
-    nuevo = {
-        "hotelID":        str(data["hotelID"]),   # <-- CAMBIADO A str()
-        "usuarioID":      str(data["usuarioID"]), # <-- CAMBIADO A str()
-        "reservaID":      str(data["reservaID"]), # <-- CAMBIADO A str()
-        "calificacion":   str(data["calificacion"]),
-        "texto":          data["texto"],
-        "fecha_creacion": datetime.now(),         # PyMongo lo convierte a Date automático
-        "estado":         "publicada",
-        "destacada":      False,
-        "respuesta_admin": None,
-        "votos_utiles":   [],
-        "total_votos":    0
-    }
+    # Función para limpiar y convertir a entero de forma segura
+    def limpiar_id(val):
+        try:
+            # Elimina cualquier letra (como la 'R' de 'R00161') y convierte a entero
+            solo_nums = ''.join(filter(str.isdigit, str(val)))
+            return int(solo_nums) if solo_nums else 0
+        except:
+            return 0
+
+    nuevo = {
+        "hotelID":      limpiar_id(data["hotelID"]),
+        "usuarioID":    limpiar_id(data["usuarioID"]),
+        "reservaID":    limpiar_id(data["reservaID"]), # Esto convertirá 'R00161' a 161
+        "calificacion": int(data["calificacion"]),
+        "texto":        data["texto"],
+        "fecha_creacion": datetime.now(),
+        "estado":       "publicada",
+        "destacada":    False,
+        "respuesta_admin": None,
+        "votos_utiles": [],
+        "total_votos":  0
+    }
 
     try:
         resultado = resenas.insert_one(nuevo)
