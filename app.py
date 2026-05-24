@@ -66,6 +66,16 @@ def rf1_crear_resena():
         "_id":      str(resultado.inserted_id)
     }), 201
 
+@app.route("/resenas", methods=["GET"])
+def get_todas_resenas():
+    cursor = resenas.find({}, {"_id": 0})
+    resultado = list(cursor)
+    for r in resultado:
+        if "fecha_creacion" in r:
+            r["fecha_creacion"] = r["fecha_creacion"].isoformat()
+    return jsonify(resultado)
+    
+
 
 # =============================================================
 # RF2 — Editar reseña (solo el autor puede editar)
