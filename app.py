@@ -21,30 +21,38 @@ resenas = db["reseñas"]
 @app.route("/resenas", methods=["POST"])
 def rf1_crear_resena():
     data = request.get_json()
-    campos = ["hotelID", "usuarioID", "reservaID", "calificacion", "texto"]
-    
-    if not all(c in data for c in campos):
-        return jsonify({"error": "Faltan campos obligatorios"}), 400
+    if not data:
+        return jsonify({"error": "No se recibió JSON"}), 400
 
-    nuevo = {
-        "hotelID": str(data["hotelID"]),
-        "usuarioID": str(data["usuarioID"]),
-        "reservaID": str(data["reservaID"]),
-        "calificacion": int(data["calificacion"]),
-        "texto": data["texto"],
-        "fecha_creacion": datetime.now(),
-        "estado": "publicada",
-        "destacada": False,
-        "respuesta_admin": None,
-        "votos_utiles": [],
-        "total_votos": 0
-    }
+    # Convertimos los valores de forma segura
+    try:
+        nuevo = {
+            "hotelID": str(data.get("hotelID")),
+            "usuarioID": str(data.get("usuarioID")),
+            "reservaID": str(data.get("reservaID")),
+            # Si 'calificacion' viene como string "5", int() lo convierte. 
+            # Si viene vacío o mal, ponemos un 0 por defecto.
+            "calificacion": int(data.get("calificacion", 0)),
+            "texto": str(data.get("texto", "")),
+            "fecha_creacion": datetime.now(),
+            "estado": "publicada",
+            "destacada": False,
+            "respuesta_admin": None,
+            "votos_utiles": [],
+            "total_votos": 0
+        }
+    except ValueError:
+        return jsonify({"error": "La calificación debe ser un número entero"}), 400
 
     try:
         resultado = resenas.insert_one(nuevo)
-        return jsonify({"mensaje": "Reseña creada", "_id": str(resultado.inserted_id)}), 201
+        return jsonify({
+            "mensaje": "Reseña creada exitosamente",
+            "_id": str(resultado.inserted_id)
+        }), 201
     except Exception as e:
-        return jsonify({"error": "Error al guardar", "detalle": str(e)}), 500
+        print("Error técnico:", str(e))
+        return jsonify({"error": "Error interno al guardar", "detalle": str(e)}), 500
 
 # =============================================================
 # GET Todas (Corregido para manejar fechas sin error)
