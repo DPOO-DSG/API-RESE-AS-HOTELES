@@ -1,9 +1,11 @@
 from flask import Flask, jsonify, request
+from flask_cors import CORS 
 from pymongo import MongoClient
 from bson import ObjectId
 from datetime import datetime
 
 app = Flask(__name__)
+CORS(app)
 
 # -------------------------------------------------------------
 # Conexión a MongoDB
@@ -47,12 +49,12 @@ def rf1_crear_resena():
             return jsonify({"error": f"Falta el campo: {campo}"}), 400
 
     nuevo = {
-        "hotelID":        int(data["hotelID"]),
-        "usuarioID":      int(data["usuarioID"]),
-        "reservaID":      int(data["reservaID"]),
+        "hotelID":        str(data["hotelID"]),   # <-- CAMBIADO A str()
+        "usuarioID":      str(data["usuarioID"]), # <-- CAMBIADO A str()
+        "reservaID":      str(data["reservaID"]), # <-- CAMBIADO A str()
         "calificacion":   int(data["calificacion"]),
         "texto":          data["texto"],
-        "fecha_creacion": datetime.now(),
+        "fecha_creacion": datetime.now(),         # PyMongo lo convierte a Date automático
         "estado":         "publicada",
         "destacada":      False,
         "respuesta_admin": None,
@@ -60,11 +62,15 @@ def rf1_crear_resena():
         "total_votos":    0
     }
 
-    resultado = resenas.insert_one(nuevo)
-    return jsonify({
-        "mensaje":  "Reseña creada exitosamente",
-        "_id":      str(resultado.inserted_id)
-    }), 201
+    try:
+        resultado = resenas.insert_one(nuevo)
+        return jsonify({
+            "mensaje":  "Reseña creada exitosamente",
+            "_id":      str(resultado.inserted_id)
+        }), 201
+    except Exception as e:
+        print("Error en Mongo:", str(e))
+        return jsonify({"error": "Falló la validación de MongoDB", "detalle": str(e)}), 400
 
 @app.route("/resenas", methods=["GET"])
 def get_todas_resenas():
@@ -226,11 +232,14 @@ def rf5_marcar_util(id):
 #
 # Devuelve todas las reseñas del usuario, ordenadas por fecha.
 # =============================================================
-@app.route("/resenas/usuario/<int:usuario_id>", methods=["GET"])
+# =============================================================
+# RF6 — Historial de reseñas propias
+# =============================================================
+@app.route("/resenas/usuario/<usuario_id>", methods=["GET"]) # <-- QUITAR EL int:
 def rf6_historial_usuario(usuario_id):
     cursor = (
         resenas
-        .find({"usuarioID": usuario_id}, {"_id": 0})
+        .find({"usuarioID": str(usuario_id)}, {"_id": 0}) # <-- BUSCAR COMO STRING
         .sort("fecha_creacion", -1)
     )
 
