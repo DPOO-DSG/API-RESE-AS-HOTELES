@@ -40,46 +40,45 @@ def serializar(doc):
 # =============================================================
 @app.route("/resenas", methods=["POST"])
 def rf1_crear_resena():
-    data = request.get_json()
+    data = request.get_json()
+    campos = ["hotelID", "usuarioID", "reservaID", "calificacion", "texto"]
+    
+    if not all(campo in data for campo in campos):
+        return jsonify({"error": "Faltan campos obligatorios"}), 400
 
-    # Validación básica de campos obligatorios
-    campos = ["hotelID", "usuarioID", "reservaID", "calificacion", "texto"]
-    for campo in campos:
-        if campo not in data:
-            return jsonify({"error": f"Falta el campo: {campo}"}), 400
-
-    # Función para limpiar y convertir a entero de forma segura
-    def limpiar_id(val):
+    # Función robusta para extraer solo números de un ID (ej: R00161 -> 161)
+    def a_int(valor):
         try:
-            # Elimina cualquier letra (como la 'R' de 'R00161') y convierte a entero
-            solo_nums = ''.join(filter(str.isdigit, str(val)))
+            # Filtra solo dígitos, si no hay nada, devuelve 0
+            solo_nums = ''.join(filter(str.isdigit, str(valor)))
             return int(solo_nums) if solo_nums else 0
         except:
             return 0
 
-    nuevo = {
-        "hotelID":      limpiar_id(data["hotelID"]),
-        "usuarioID":    limpiar_id(data["usuarioID"]),
-        "reservaID":    limpiar_id(data["reservaID"]), # Esto convertirá 'R00161' a 161
-        "calificacion": int(data["calificacion"]),
-        "texto":        data["texto"],
-        "fecha_creacion": datetime.now(),
-        "estado":       "publicada",
-        "destacada":    False,
-        "respuesta_admin": None,
-        "votos_utiles": [],
-        "total_votos":  0
-    }
+    try:
+        nuevo = {
+            "hotelID":      a_int(data["hotelID"]),
+            "usuarioID":    a_int(data["usuarioID"]),
+            "reservaID":    a_int(data["reservaID"]), # Ahora es un int válido
+            "calificacion": int(data["calificacion"]),
+            "texto":        data["texto"],
+            "fecha_creacion": datetime.now(),
+            "estado":       "publicada",
+            "destacada":    False,
+            "respuesta_admin": None,
+            "votos_utiles": [],
+            "total_votos":  0
+        }
 
-    try:
-        resultado = resenas.insert_one(nuevo)
-        return jsonify({
-            "mensaje":  "Reseña creada exitosamente",
-            "_id":      str(resultado.inserted_id)
-        }), 201
-    except Exception as e:
-        print("Error en Mongo:", str(e))
-        return jsonify({"error": "Falló la validación de MongoDB", "detalle": str(e)}), 400
+        resultado = resenas.insert_one(nuevo)
+        return jsonify({
+            "mensaje": "Reseña creada exitosamente",
+            "_id": str(resultado.inserted_id)
+        }), 201
+
+    except Exception as e:
+        print("Error en Mongo:", str(e))
+        return jsonify({"error": "Falló la validación de MongoDB", "detalle": str(e)}), 400
 
 @app.route("/resenas", methods=["GET"])
 def get_todas_resenas():
