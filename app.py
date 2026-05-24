@@ -8,7 +8,7 @@ app = Flask(__name__)
 # -------------------------------------------------------------
 # Conexión a MongoDB
 # -------------------------------------------------------------
-client = MongoClient("mongodb://ISIS2304I01202610:rCWDuzcLRkE6@157.253.236.88:8087/ISIS2304I01202610")
+client = MongoClient("mongodb://ISIS2304I01202610:rCWDuzcLRkE6@157.253.236.88:8087/")
 db = client["ISIS2304I01202610"]
 resenas = db["reseñas"]
 
