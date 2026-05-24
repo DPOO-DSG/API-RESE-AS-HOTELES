@@ -41,44 +41,32 @@ def serializar(doc):
 @app.route("/resenas", methods=["POST"])
 def rf1_crear_resena():
     data = request.get_json()
-    campos = ["hotelID", "usuarioID", "reservaID", "calificacion", "texto"]
-    
-    if not all(campo in data for campo in campos):
-        return jsonify({"error": "Faltan campos obligatorios"}), 400
-
-    # Función robusta para extraer solo números de un ID (ej: R00161 -> 161)
-    def a_int(valor):
-        try:
-            # Filtra solo dígitos, si no hay nada, devuelve 0
-            solo_nums = ''.join(filter(str.isdigit, str(valor)))
-            return int(solo_nums) if solo_nums else 0
-        except:
-            return 0
+    print("DEBUG: Datos recibidos desde APEX:", data) # <-- Esto saldrá en los Logs de Render
 
     try:
         nuevo = {
-            "hotelID":      a_int(data["hotelID"]),
-            "usuarioID":    a_int(data["usuarioID"]),
-            "reservaID":    a_int(data["reservaID"]), # Ahora es un int válido
+            "hotelID": int(data["hotelID"]),
+            "usuarioID": int(data["usuarioID"]),
+            "reservaID": int(''.join(filter(str.isdigit, str(data["reservaID"]))) or 0),
             "calificacion": int(data["calificacion"]),
-            "texto":        data["texto"],
+            "texto": str(data["texto"]),
             "fecha_creacion": datetime.now(),
-            "estado":       "publicada",
-            "destacada":    False,
+            "estado": "publicada",
+            "destacada": False,
             "respuesta_admin": None,
             "votos_utiles": [],
-            "total_votos":  0
+            "total_votos": 0
         }
-
+        print("DEBUG: Objeto preparado para Mongo:", nuevo) # <-- Verifica aquí si todo es int/str correcto
+        
         resultado = resenas.insert_one(nuevo)
-        return jsonify({
-            "mensaje": "Reseña creada exitosamente",
-            "_id": str(resultado.inserted_id)
-        }), 201
+        return jsonify({"mensaje": "Éxito", "_id": str(resultado.inserted_id)}), 201
 
     except Exception as e:
-        print("Error en Mongo:", str(e))
-        return jsonify({"error": "Falló la validación de MongoDB", "detalle": str(e)}), 400
+        # AQUÍ VERÁS EL ERROR EXACTO EN LOS LOGS DE RENDER
+        print("DEBUG: ¡ERROR CRÍTICO EN MONGODB!")
+        print("DEBUG: Detalles del error:", str(e))
+        return jsonify({"error": "Falló validación", "detalle": str(e)}), 400
 
 @app.route("/resenas", methods=["GET"])
 def get_todas_resenas():
