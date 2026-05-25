@@ -24,11 +24,15 @@ def inicio():
 
 @app.route("/resenas", methods=["GET"])
 def get_todas_resenas():
-    cursor = resenas.find({}, {"_id": 0})
+    cursor = resenas.find({}) 
     resultado = list(cursor)
+    
     for r in resultado:
-        if "fecha_creacion" in r:
+        if "_id" in r:
+            r["_id"] = str(r["_id"]) # Convertimos el ID a texto
+        if "fecha_creacion" in r and isinstance(r["fecha_creacion"], datetime):
             r["fecha_creacion"] = r["fecha_creacion"].isoformat()
+            
     return jsonify(resultado)
 
 @app.route("/resenas", methods=["POST"])
