@@ -3,6 +3,7 @@ from flask_cors import CORS
 from pymongo import MongoClient
 from bson import ObjectId
 from datetime import datetime
+from bson import ObjectId
 import os
 
 app = Flask(__name__)
@@ -60,28 +61,25 @@ def rf1_crear_resena():
         print("ERROR:", str(e))
         return jsonify({"error": "Fallo validacion", "detalle": str(e)}), 400
 
-@app.route("/resenas/<id>", methods=["PUT"])
-def rf2_editar_resena(id):
+@app.route("/resenas/util/<id>", methods=["PUT"])
+def votar_utilidad(id):
     data = request.get_json()
+    usuario_id = int(data.get("usuarioID")) # Aseguramos que sea int según tu esquema
     
-    # IMPORTANTE: Ya no uses int(), usa str() para que coincida con el esquema string
+    # 1. Agregamos el usuario al array de votos (si no está ya)
+    # 2. Incrementamos el total_votos en 1
     resultado = resenas.update_one(
-        {
-            "_id": ObjectId(id),
-            "usuarioID": str(data["usuarioID"]) # <--- CAMBIADO A STR
-        },
-        {
-            "$set": {
-                "calificacion": int(data["calificacion"]),
-                "texto": str(data["texto"])
-            }
+        { "_id": ObjectId(id) },
+        { 
+            "$addToSet": { "votos_utiles": usuario_id },
+            "$inc": { "total_votos": 1 }
         }
     )
-
-    if resultado.matched_count == 0:
-        return jsonify({"error": "Reseña no encontrada o no eres el autor"}), 404
-
-    return jsonify({"mensaje": "Reseña actualizada"})
+    
+    if resultado.modified_count == 0:
+        return jsonify({"error": "Ya votaste o la reseña no existe"}), 400
+        
+    return jsonify({"mensaje": "Voto registrado"})
 
 @app.route("/resenas/<id>", methods=["DELETE"])
 def rf3_rf8_eliminar_resena(id):
