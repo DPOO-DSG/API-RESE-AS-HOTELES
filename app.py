@@ -229,6 +229,16 @@ def historial_completo(usuario_id):
             r["fecha_creacion"] = r["fecha_creacion"].isoformat()
     return jsonify(resultado)
 
+@app.route("/resenas/<id>/quitar-destacada", methods=["POST"])
+def quitar_destacada(id):
+    resultado = resenas.update_one(
+        {"_id": ObjectId(id)},
+        {"$set": {"destacada": False}}
+    )
+    if resultado.matched_count == 0:
+        return jsonify({"error": "Reseña no encontrada"}), 404
+    return jsonify({"mensaje": "Destacado removido"})
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(debug=False, host="0.0.0.0", port=port)
