@@ -238,6 +238,51 @@ def quitar_destacada(id):
     if resultado.matched_count == 0:
         return jsonify({"error": "Reseña no encontrada"}), 404
     return jsonify({"mensaje": "Destacado removido"})
+    @app.route("/reportes/evolucion/<hotelID>", methods=["GET"])
+def reporte_evolucion(hotelID):
+    anio = request.args.get("anio")
+    if not anio:
+        return jsonify({"error": "Falta el parámetro anio"}), 400
+
+    # 1. Buscamos todas las reseñas de ese hotel que no estén eliminadas
+    cursor = resenas.find({
+        "hotelID": str(hotelID), 
+        "estado": {"$ne": "eliminada"}
+    })
+    
+    meses_dict = {}
+    
+    for r in cursor:
+        fecha = r.get("fecha_creacion")
+        if not fecha:
+            continue
+            
+        if isinstance(fecha, str):
+            try:
+                fecha = datetime.fromisoformat(fecha.replace('Z', '+00:00'))
+            except:
+                continue
+                
+        if str(fecha.year) == str(anio):
+            mes_str = f"{fecha.year}-{fecha.month:02d}"
+            
+            if mes_str not in meses_dict:
+                meses_dict[mes_str] = {"suma": 0, "total": 0}
+                
+            meses_dict[mes_str]["suma"] += r.get("calificacion", 0)
+            meses_dict[mes_str]["total"] += 1
+
+    resultado_meses = []
+    for mes, stats in sorted(meses_dict.items()):
+        promedio = stats["suma"] / stats["total"]
+        resultado_meses.append({
+            "mes": mes,
+            "calificacion_promedio": round(promedio, 2),
+            "total_resenas": stats["total"]
+        })
+
+    # 4. Devolvemos el JSON exactamente como lo espera tu JavaScript
+    return jsonify({"meses": resultado_meses})
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
