@@ -61,25 +61,30 @@ def rf1_crear_resena():
         print("ERROR:", str(e))
         return jsonify({"error": "Fallo validacion", "detalle": str(e)}), 400
 
-@app.route("/resenas/util/<id>", methods=["PUT"])
-def votar_utilidad(id):
+@app.route("/resenas/<id>", methods=["PUT"])
+def rf2_editar_resena(id):
     data = request.get_json()
-    usuario_id = int(data.get("usuarioID")) # Aseguramos que sea int según tu esquema
+    if "usuarioID" not in data:
+        return jsonify({"error": "Falta el campo usuarioID"}), 400
     
-    # 1. Agregamos el usuario al array de votos (si no está ya)
-    # 2. Incrementamos el total_votos en 1
+    campos = {}
+    if "calificacion" in data:
+        campos["calificacion"] = int(data["calificacion"])
+    if "texto" in data:
+        campos["texto"] = str(data["texto"])
+    
+    if not campos:
+        return jsonify({"error": "No hay campos para actualizar"}), 400
+
     resultado = resenas.update_one(
-        { "_id": ObjectId(id) },
-        { 
-            "$addToSet": { "votos_utiles": usuario_id },
-            "$inc": { "total_votos": 1 }
-        }
+        {"_id": ObjectId(id), "usuarioID": str(data["usuarioID"]), "estado": "publicada"},
+        {"$set": campos}
     )
     
-    if resultado.modified_count == 0:
-        return jsonify({"error": "Ya votaste o la reseña no existe"}), 400
-        
-    return jsonify({"mensaje": "Voto registrado"})
+    if resultado.matched_count == 0:
+        return jsonify({"error": "Reseña no encontrada o no tienes permiso"}), 404
+    
+    return jsonify({"mensaje": "Reseña actualizada"})
 
 @app.route("/resenas/<id>", methods=["DELETE"])
 def rf3_rf8_eliminar_resena(id):
