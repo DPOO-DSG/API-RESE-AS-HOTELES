@@ -3,7 +3,6 @@ from flask_cors import CORS
 from pymongo import MongoClient
 from bson import ObjectId
 from datetime import datetime
-from bson import ObjectId
 import os
 
 app = Flask(__name__)
@@ -13,34 +12,23 @@ client = MongoClient("mongodb://ISIS2304I01202610:rCWDuzcLRkE6@157.253.236.88:80
 db = client["ISIS2304I01202610"]
 resenas = db["resenas"]
 
-def serializar(doc):
-    if doc is None:
-        return None
-    doc["_id"] = str(doc["_id"])
-    return doc
-
 @app.route("/", methods=["GET"])
 def inicio():
     return jsonify({"estado": "API funcionando correctamente"})
 
 @app.route("/resenas", methods=["GET"])
 def get_todas_resenas():
-    # CAMBIO AQUÍ: Filtramos para que solo traiga las que NO son "eliminada"
-    cursor = resenas.find({"estado": {"$ne": "eliminada"}}) 
+    cursor = resenas.find({"estado": {"$ne": "eliminada"}})
     resultado = list(cursor)
-    
     for r in resultado:
-        if "_id" in r:
-            r["_id"] = str(r["_id"]) 
+        r["_id"] = str(r["_id"])
         if "fecha_creacion" in r and hasattr(r["fecha_creacion"], 'isoformat'):
             r["fecha_creacion"] = r["fecha_creacion"].isoformat()
-            
     return jsonify(resultado)
 
 @app.route("/resenas", methods=["POST"])
 def rf1_crear_resena():
     data = request.get_json()
-    print("DEBUG datos recibidos:", data)
     try:
         nuevo = {
             "hotelID": str(data["hotelID"]),
@@ -58,7 +46,6 @@ def rf1_crear_resena():
         resultado = resenas.insert_one(nuevo)
         return jsonify({"mensaje": "Exito", "_id": str(resultado.inserted_id)}), 201
     except Exception as e:
-        print("ERROR:", str(e))
         return jsonify({"error": "Fallo validacion", "detalle": str(e)}), 400
 
 @app.route("/resenas/<id>", methods=["PUT"])
@@ -66,24 +53,19 @@ def rf2_editar_resena(id):
     data = request.get_json()
     if "usuarioID" not in data:
         return jsonify({"error": "Falta el campo usuarioID"}), 400
-    
     campos = {}
     if "calificacion" in data:
         campos["calificacion"] = int(data["calificacion"])
     if "texto" in data:
         campos["texto"] = str(data["texto"])
-    
     if not campos:
         return jsonify({"error": "No hay campos para actualizar"}), 400
-
     resultado = resenas.update_one(
         {"_id": ObjectId(id), "usuarioID": str(data["usuarioID"]), "estado": "publicada"},
         {"$set": campos}
     )
-    
     if resultado.matched_count == 0:
         return jsonify({"error": "Reseña no encontrada o no tienes permiso"}), 404
-    
     return jsonify({"mensaje": "Reseña actualizada"})
 
 @app.route("/resenas/<id>", methods=["DELETE"])
@@ -101,7 +83,7 @@ def rf3_rf8_eliminar_resena(id):
         return jsonify({"error": "Resena no encontrada o no tienes permiso"}), 404
     return jsonify({"mensaje": "Resena eliminada"})
 
-@app.route("/reportes/evolucion/<hotel_id>", methods=["GET"])
+@app.route("/resenas/hotel/<hotel_id>", methods=["GET"])
 def rf4_resenas_hotel(hotel_id):
     pagina = int(request.args.get("pagina", 0))
     cursor = (
@@ -124,7 +106,7 @@ def rf5_marcar_util(id):
         return jsonify({"error": "Falta el campo usuarioID"}), 400
     resultado = resenas.update_one(
         {"_id": ObjectId(id)},
-        {"$addToSet": {"votos_utiles": int(data["usuarioID"])}, "$inc": {"total_votos": 1}}
+        {"$addToSet": {"votos_utiles": str(data["usuarioID"])}, "$inc": {"total_votos": 1}}
     )
     if resultado.matched_count == 0:
         return jsonify({"error": "Resena no encontrada"}), 404
@@ -132,16 +114,22 @@ def rf5_marcar_util(id):
 
 @app.route("/resenas/usuario/<usuario_id>", methods=["GET"])
 def rf6_historial_usuario(usuario_id):
-    cursor = (
-        resenas
-        .find({"usuarioID": str(usuario_id)}, {"_id": 0})
-        .sort("fecha_creacion", -1)
-    )
+    cursor = resenas.find({"usuarioID": str(usuario_id)}, {"_id": 0}).sort("fecha_creacion", -1)
     resultado = list(cursor)
     for r in resultado:
         if "fecha_creacion" in r:
             r["fecha_creacion"] = r["fecha_creacion"].isoformat()
     return jsonify({"usuarioID": usuario_id, "total": len(resultado), "resenas": resultado})
+
+@app.route("/resenas/usuario/<usuario_id>/todas", methods=["GET"])
+def historial_completo(usuario_id):
+    cursor = resenas.find({"usuarioID": str(usuario_id)}).sort("fecha_creacion", -1)
+    resultado = list(cursor)
+    for r in resultado:
+        r["_id"] = str(r["_id"])
+        if "fecha_creacion" in r:
+            r["fecha_creacion"] = r["fecha_creacion"].isoformat()
+    return jsonify(resultado)
 
 @app.route("/resenas/<id>/respuesta", methods=["POST"])
 def rf7_responder_resena(id):
@@ -173,6 +161,16 @@ def rf9_destacar_resena(id):
         return jsonify({"error": "Resena no encontrada"}), 404
     return jsonify({"mensaje": "Resena destacada exitosamente"})
 
+@app.route("/resenas/<id>/quitar-destacada", methods=["POST"])
+def quitar_destacada(id):
+    resultado = resenas.update_one(
+        {"_id": ObjectId(id)},
+        {"$set": {"destacada": False}}
+    )
+    if resultado.matched_count == 0:
+        return jsonify({"error": "Reseña no encontrada"}), 404
+    return jsonify({"mensaje": "Destacado removido"})
+
 @app.route("/reportes/top-hoteles", methods=["GET"])
 def rfc1_top_hoteles():
     fecha_inicio = request.args.get("fecha_inicio")
@@ -189,86 +187,31 @@ def rfc1_top_hoteles():
     ]
     return jsonify(list(resenas.aggregate(pipeline)))
 
-@app.route("/reportes/evolucion/<int:hotel_id>", methods=["GET"])
+@app.route("/reportes/evolucion/<hotel_id>", methods=["GET"])
 def rfc2_evolucion_mensual(hotel_id):
     anio = request.args.get("anio")
     if not anio:
         return jsonify({"error": "Se requiere el parametro anio"}), 400
-    pipeline = [
-        {"$match": {"hotelID": hotel_id, "estado": "publicada", "$expr": {"$eq": [{"$year": "$fecha_creacion"}, int(anio)]}}},
-        {"$group": {"_id": {"mes": {"$dateToString": {"format": "%Y-%m", "date": "$fecha_creacion"}}}, "calificacion_promedio": {"$avg": "$calificacion"}, "total_resenas": {"$sum": 1}}},
-        {"$addFields": {"calificacion_promedio": {"$round": ["$calificacion_promedio", 2]}}},
-        {"$sort": {"_id.mes": 1}},
-        {"$project": {"_id": 0, "mes": "$_id.mes", "calificacion_promedio": 1, "total_resenas": 1}}
-    ]
-    return jsonify({"hotelID": hotel_id, "anio": anio, "meses": list(resenas.aggregate(pipeline))})
 
-@app.route("/reportes/ciudad", methods=["GET"])
-def rfc3_comparativa_ciudad():
-    hoteles_param = request.args.get("hoteles")
-    if not hoteles_param:
-        return jsonify({"error": "Se requiere el parametro hoteles (ej: ?hoteles=1,2,3)"}), 400
-    hotel_ids = [int(h) for h in hoteles_param.split(",")]
-    pipeline = [
-        {"$match": {"hotelID": {"$in": hotel_ids}, "estado": "publicada"}},
-        {"$group": {"_id": "$hotelID", "calificacion_promedio": {"$avg": "$calificacion"}, "total_resenas": {"$sum": 1}, "con_respuesta": {"$sum": {"$cond": [{"$ne": ["$respuesta_admin", None]}, 1, 0]}}, "destacadas": {"$sum": {"$cond": ["$destacada", 1, 0]}}}},
-        {"$addFields": {"calificacion_promedio": {"$round": ["$calificacion_promedio", 2]}, "porcentaje_con_respuesta": {"$round": [{"$multiply": [{"$divide": ["$con_respuesta", "$total_resenas"]}, 100]}, 1]}, "porcentaje_destacadas": {"$round": [{"$multiply": [{"$divide": ["$destacadas", "$total_resenas"]}, 100]}, 1]}}},
-        {"$setWindowFields": {"sortBy": {"calificacion_promedio": -1}, "output": {"promedio_ciudad": {"$avg": "$calificacion_promedio", "window": {"documents": ["unbounded", "unbounded"]}}}}},
-        {"$addFields": {"promedio_ciudad": {"$round": ["$promedio_ciudad", 2]}, "bajo_promedio_ciudad": {"$lt": ["$calificacion_promedio", "$promedio_ciudad"]}}},
-        {"$sort": {"calificacion_promedio": -1}},
-        {"$project": {"_id": 0, "hotelID": "$_id", "calificacion_promedio": 1, "total_resenas": 1, "porcentaje_con_respuesta": 1, "porcentaje_destacadas": 1, "promedio_ciudad": 1, "bajo_promedio_ciudad": 1}}
-    ]
-    return jsonify({"hoteles_consultados": hotel_ids, "resultados": list(resenas.aggregate(pipeline))})
-@app.route("/resenas/usuario/<usuario_id>/todas", methods=["GET"])
-def historial_completo(usuario_id):
-    cursor = resenas.find({"usuarioID": str(usuario_id)}).sort("fecha_creacion", -1)
-    resultado = list(cursor)
-    for r in resultado:
-        r["_id"] = str(r["_id"])
-        if "fecha_creacion" in r:
-            r["fecha_creacion"] = r["fecha_creacion"].isoformat()
-    return jsonify(resultado)
-
-@app.route("/resenas/<id>/quitar-destacada", methods=["POST"])
-def quitar_destacada(id):
-    resultado = resenas.update_one(
-        {"_id": ObjectId(id)},
-        {"$set": {"destacada": False}}
-    )
-    if resultado.matched_count == 0:
-        return jsonify({"error": "Reseña no encontrada"}), 404
-    return jsonify({"mensaje": "Destacado removido"})
-    @app.route("/reportes/evolucion/<hotelID>", methods=["GET"])
-def reporte_evolucion(hotelID):
-    anio = request.args.get("anio")
-    if not anio:
-        return jsonify({"error": "Falta el parámetro anio"}), 400
-
-    # 1. Buscamos todas las reseñas de ese hotel que no estén eliminadas
     cursor = resenas.find({
-        "hotelID": str(hotelID), 
+        "hotelID": str(hotel_id),
         "estado": {"$ne": "eliminada"}
     })
-    
+
     meses_dict = {}
-    
     for r in cursor:
         fecha = r.get("fecha_creacion")
         if not fecha:
             continue
-            
         if isinstance(fecha, str):
             try:
                 fecha = datetime.fromisoformat(fecha.replace('Z', '+00:00'))
             except:
                 continue
-                
         if str(fecha.year) == str(anio):
             mes_str = f"{fecha.year}-{fecha.month:02d}"
-            
             if mes_str not in meses_dict:
                 meses_dict[mes_str] = {"suma": 0, "total": 0}
-                
             meses_dict[mes_str]["suma"] += r.get("calificacion", 0)
             meses_dict[mes_str]["total"] += 1
 
@@ -281,8 +224,27 @@ def reporte_evolucion(hotelID):
             "total_resenas": stats["total"]
         })
 
-    # 4. Devolvemos el JSON exactamente como lo espera tu JavaScript
-    return jsonify({"meses": resultado_meses})
+    return jsonify({"hotelID": hotel_id, "anio": anio, "meses": resultado_meses})
+
+@app.route("/reportes/ciudad", methods=["GET"])
+def rfc3_comparativa_ciudad():
+    hoteles_param = request.args.get("hoteles")
+    if not hoteles_param:
+        return jsonify({"error": "Se requiere el parametro hoteles (ej: ?hoteles=H001,H002)"}), 400
+    hotel_ids = [h.strip() for h in hoteles_param.split(",")]
+    pipeline = [
+        {"$match": {"hotelID": {"$in": hotel_ids}, "estado": "publicada"}},
+        {"$group": {"_id": "$hotelID", "calificacion_promedio": {"$avg": "$calificacion"}, "total_resenas": {"$sum": 1},
+                    "con_respuesta": {"$sum": {"$cond": [{"$ne": ["$respuesta_admin", None]}, 1, 0]}},
+                    "destacadas": {"$sum": {"$cond": ["$destacada", 1, 0]}}}},
+        {"$addFields": {"calificacion_promedio": {"$round": ["$calificacion_promedio", 2]},
+                        "porcentaje_con_respuesta": {"$round": [{"$multiply": [{"$divide": ["$con_respuesta", "$total_resenas"]}, 100]}, 1]},
+                        "porcentaje_destacadas": {"$round": [{"$multiply": [{"$divide": ["$destacadas", "$total_resenas"]}, 100]}, 1]}}},
+        {"$sort": {"calificacion_promedio": -1}},
+        {"$project": {"_id": 0, "hotelID": "$_id", "calificacion_promedio": 1, "total_resenas": 1,
+                      "porcentaje_con_respuesta": 1, "porcentaje_destacadas": 1}}
+    ]
+    return jsonify({"hoteles_consultados": hotel_ids, "resultados": list(resenas.aggregate(pipeline))})
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
