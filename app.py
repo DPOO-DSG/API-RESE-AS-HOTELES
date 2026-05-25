@@ -24,13 +24,14 @@ def inicio():
 
 @app.route("/resenas", methods=["GET"])
 def get_todas_resenas():
-    cursor = resenas.find({}) 
+    # CAMBIO AQUÍ: Filtramos para que solo traiga las que NO son "eliminada"
+    cursor = resenas.find({"estado": {"$ne": "eliminada"}}) 
     resultado = list(cursor)
     
     for r in resultado:
         if "_id" in r:
-            r["_id"] = str(r["_id"]) # Convertimos el ID a texto
-        if "fecha_creacion" in r and isinstance(r["fecha_creacion"], datetime):
+            r["_id"] = str(r["_id"]) 
+        if "fecha_creacion" in r and hasattr(r["fecha_creacion"], 'isoformat'):
             r["fecha_creacion"] = r["fecha_creacion"].isoformat()
             
     return jsonify(resultado)
