@@ -101,7 +101,7 @@ def rf3_rf8_eliminar_resena(id):
         return jsonify({"error": "Resena no encontrada o no tienes permiso"}), 404
     return jsonify({"mensaje": "Resena eliminada"})
 
-@app.route("/resenas/hotel/<int:hotel_id>", methods=["GET"])
+@app.route("/reportes/evolucion/<hotel_id>", methods=["GET"])
 def rf4_resenas_hotel(hotel_id):
     pagina = int(request.args.get("pagina", 0))
     cursor = (
