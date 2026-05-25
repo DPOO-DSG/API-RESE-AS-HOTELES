@@ -37,9 +37,9 @@ def rf1_crear_resena():
     print("DEBUG datos recibidos:", data)
     try:
         nuevo = {
-            "hotelID": int(data["hotelID"]),
-            "usuarioID": int(data["usuarioID"]),
-            "reservaID": int(''.join(filter(str.isdigit, str(data["reservaID"]))) or 0),
+            "hotelID": str(data["hotelID"]),
+            "usuarioID": str(data["usuarioID"]),
+            "reservaID": str(''.join(filter(str.isdigit, str(data["reservaID"]))) or 0),
             "calificacion": int(data["calificacion"]),
             "texto": str(data["texto"]),
             "fecha_creacion": datetime.now(),
