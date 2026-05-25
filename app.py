@@ -214,6 +214,15 @@ def rfc3_comparativa_ciudad():
         {"$project": {"_id": 0, "hotelID": "$_id", "calificacion_promedio": 1, "total_resenas": 1, "porcentaje_con_respuesta": 1, "porcentaje_destacadas": 1, "promedio_ciudad": 1, "bajo_promedio_ciudad": 1}}
     ]
     return jsonify({"hoteles_consultados": hotel_ids, "resultados": list(resenas.aggregate(pipeline))})
+@app.route("/resenas/usuario/<usuario_id>/todas", methods=["GET"])
+def historial_completo(usuario_id):
+    cursor = resenas.find({"usuarioID": str(usuario_id)}).sort("fecha_creacion", -1)
+    resultado = list(cursor)
+    for r in resultado:
+        r["_id"] = str(r["_id"])
+        if "fecha_creacion" in r:
+            r["fecha_creacion"] = r["fecha_creacion"].isoformat()
+    return jsonify(resultado)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
