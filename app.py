@@ -62,15 +62,25 @@ def rf1_crear_resena():
 @app.route("/resenas/<id>", methods=["PUT"])
 def rf2_editar_resena(id):
     data = request.get_json()
-    if "usuarioID" not in data:
-        return jsonify({"error": "Falta el campo usuarioID"}), 400
+    
+    # IMPORTANTE: Ya no uses int(), usa str() para que coincida con el esquema string
     resultado = resenas.update_one(
-        {"_id": ObjectId(id), "usuarioID": int(data["usuarioID"])},
-        {"$set": {"calificacion": int(data["calificacion"]), "texto": data["texto"]}}
+        {
+            "_id": ObjectId(id),
+            "usuarioID": str(data["usuarioID"]) # <--- CAMBIADO A STR
+        },
+        {
+            "$set": {
+                "calificacion": int(data["calificacion"]),
+                "texto": str(data["texto"])
+            }
+        }
     )
+
     if resultado.matched_count == 0:
-        return jsonify({"error": "Resena no encontrada o no eres el autor"}), 404
-    return jsonify({"mensaje": "Resena actualizada"})
+        return jsonify({"error": "Reseña no encontrada o no eres el autor"}), 404
+
+    return jsonify({"mensaje": "Reseña actualizada"})
 
 @app.route("/resenas/<id>", methods=["DELETE"])
 def rf3_rf8_eliminar_resena(id):
