@@ -77,7 +77,7 @@ def rf3_rf8_eliminar_resena(id):
         data = request.get_json()
         if not data or "usuarioID" not in data:
             return jsonify({"error": "Falta el campo usuarioID"}), 400
-        filtro = {"_id": ObjectId(id), "usuarioID": int(data["usuarioID"])}
+        filtro = {"_id": ObjectId(id), "usuarioID": str(data["usuarioID"])}
     resultado = resenas.update_one(filtro, {"$set": {"estado": "eliminada"}})
     if resultado.matched_count == 0:
         return jsonify({"error": "Resena no encontrada o no tienes permiso"}), 404
@@ -134,7 +134,7 @@ def rf7_responder_resena(id):
     resultado = resenas.update_one(
         {"_id": ObjectId(id)},
         {"$set": {"respuesta_admin": {
-            "usuarioID_admin": int(data["usuarioID_admin"]),
+            "usuarioID_admin": str(data["usuarioID_admin"]),
             "texto_respuesta": data["texto_respuesta"],
             "fecha_respuesta": datetime.now()
         }}}
@@ -148,7 +148,7 @@ def rf9_destacar_resena(id):
     data = request.get_json()
     if "hotelID" not in data:
         return jsonify({"error": "Falta el campo hotelID"}), 400
-    hotel_id = int(data["hotelID"])
+    hotel_id = str(data["hotelID"])
     resenas.update_one({"hotelID": hotel_id, "destacada": True}, {"$set": {"destacada": False}})
     resultado = resenas.update_one({"_id": ObjectId(id)}, {"$set": {"destacada": True}})
     if resultado.matched_count == 0:
