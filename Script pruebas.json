@@ -1,0 +1,186 @@
+// =============================================================
+// DANN-ALPES — Módulo de Reseñas
+// Script 05: Prueba de esquema de validación
+// Escenario de prueba RF1 y RF2
+// Ejecutar en: Mongosh o MongoDB Compass (pestaña Shell)
+// Comando: load("05_prueba_validacion.js")
+//
+// Propósito: demostrar que el esquema de validación rechaza
+// documentos que no cumplen las reglas definidas.
+// Cada intento de inserción DEBE fallar con un error.
+// =============================================================
+
+use("dann_alpes");
+
+print("=== PRUEBAS DE VALIDACIÓN DE ESQUEMA ===\n");
+
+// -------------------------------------------------------------
+// PRUEBA 1 — Falta campo obligatorio (texto)
+// Viola: 'texto' está en el array 'required'
+// Resultado esperado: ERROR - Document failed validation
+// -------------------------------------------------------------
+print("PRUEBA 1: Falta campo obligatorio 'texto'");
+try {
+  db.reseñas.insertOne({
+    hotelID:       "1",
+    usuarioID:     "42",
+    reservaID:     "101",
+    calificacion:  4,
+    // texto: intencionalmente omitido
+    fecha_creacion: new Date(),
+    estado:        "publicada",
+    destacada:     false
+  });
+  print("RESULTADO: Insertado — ERROR, el esquema debió rechazarlo\n");
+} catch (e) {
+  print("RESULTADO: Rechazado correctamente ✔");
+  print("Motivo: " + e.message + "\n");
+}
+
+// -------------------------------------------------------------
+// PRUEBA 2 — Calificación fuera del rango permitido
+// Viola: calificacion tiene minimum:1 y maximum:5
+// Resultado esperado: ERROR - Document failed validation
+// -------------------------------------------------------------
+print("PRUEBA 2: Calificación fuera de rango (calificacion: 8)");
+try {
+  db.reseñas.insertOne({
+    hotelID:        "1",
+    usuarioID:      "42",
+    reservaID:      "102",
+    calificacion:   8,           // ← viola maximum: 5
+    texto:          "Muy buena estadía",
+    fecha_creacion: new Date(),
+    estado:         "publicada",
+    destacada:      false
+  });
+  print("RESULTADO: Insertado — ERROR, el esquema debió rechazarlo\n");
+} catch (e) {
+  print("RESULTADO: Rechazado correctamente ✔");
+  print("Motivo: " + e.message + "\n");
+}
+
+// -------------------------------------------------------------
+// PRUEBA 3 — Tipo de dato incorrecto en calificacion
+// Viola: calificacion debe ser bsonType 'int', no string
+// Resultado esperado: ERROR - Document failed validation
+// -------------------------------------------------------------
+print("PRUEBA 3: Tipo incorrecto en calificacion (string en vez de int)");
+try {
+  db.reseñas.insertOne({
+    hotelID:        "1",
+    usuarioID:      "42",
+    reservaID:      "103",
+    calificacion:   "cinco",     // ← viola bsonType: 'int'
+    texto:          "Excelente hotel",
+    fecha_creacion: new Date(),
+    estado:         "publicada",
+    destacada:      false
+  });
+  print("RESULTADO: Insertado — ERROR, el esquema debió rechazarlo\n");
+} catch (e) {
+  print("RESULTADO: Rechazado correctamente ✔");
+  print("Motivo: " + e.message + "\n");
+}
+
+// -------------------------------------------------------------
+// PRUEBA 4 — Estado con valor no permitido
+// Viola: estado tiene enum: ['publicada', 'eliminada']
+// Resultado esperado: ERROR - Document failed validation
+// -------------------------------------------------------------
+print("PRUEBA 4: Estado con valor fuera del enum (estado: 'borrador')");
+try {
+  db.reseñas.insertOne({
+    hotelID:        "1",
+    usuarioID:      "42",
+    reservaID:      "104",
+    calificacion:   3,
+    texto:          "Servicio regular",
+    fecha_creacion: new Date(),
+    estado:         "borrador",  // ← viola enum: ['publicada','eliminada']
+    destacada:      false
+  });
+  print("RESULTADO: Insertado — ERROR, el esquema debió rechazarlo\n");
+} catch (e) {
+  print("RESULTADO: Rechazado correctamente ✔");
+  print("Motivo: " + e.message + "\n");
+}
+
+// -------------------------------------------------------------
+// PRUEBA 5 — Texto demasiado corto
+// Viola: texto tiene minLength: 4
+// Resultado esperado: ERROR - Document failed validation
+// -------------------------------------------------------------
+print("PRUEBA 5: Texto demasiado corto (menos de 4 caracteres)");
+try {
+  db.reseñas.insertOne({
+    hotelID:        "1",
+    usuarioID:      "42",
+    reservaID:      "105",
+    calificacion:   2,
+    texto:          "Ok",        // ← viola minLength: 4
+    fecha_creacion: new Date(),
+    estado:         "publicada",
+    destacada:      false
+  });
+  print("RESULTADO: Insertado — ERROR, el esquema debió rechazarlo\n");
+} catch (e) {
+  print("RESULTADO: Rechazado correctamente ✔");
+  print("Motivo: " + e.message + "\n");
+}
+
+// -------------------------------------------------------------
+// PRUEBA 6 — respuesta_admin con campos incompletos
+// Viola: si respuesta_admin es objeto, required exige
+//        usuarioID_admin, texto_respuesta y fecha_respuesta
+// Resultado esperado: ERROR - Document failed validation
+// -------------------------------------------------------------
+print("PRUEBA 6: respuesta_admin con campos obligatorios faltantes");
+try {
+  db.reseñas.insertOne({
+    hotelID:        "1",
+    usuarioID:      "42",
+    reservaID:      "106",
+    calificacion:   5,
+    texto:          "Habitaciones muy cómodas",
+    fecha_creacion: new Date(),
+    estado:         "publicada",
+    destacada:      false,
+    respuesta_admin: {
+      texto_respuesta: "Gracias por su visita"
+      // usuarioID_admin y fecha_respuesta intencionalmente omitidos
+    }
+  });
+  print("RESULTADO: Insertado — ERROR, el esquema debió rechazarlo\n");
+} catch (e) {
+  print("RESULTADO: Rechazado correctamente ✔");
+  print("Motivo: " + e.message + "\n");
+}
+
+// -------------------------------------------------------------
+// CONTROL — Documento válido que SÍ debe insertarse
+// Cumple todas las reglas del esquema
+// Resultado esperado: inserción exitosa
+// -------------------------------------------------------------
+print("CONTROL: Documento válido que SÍ debe insertarse");
+try {
+  db.reseñas.insertOne({
+    hotelID:         "1",
+    usuarioID:       "42",
+    reservaID:       "999",
+    calificacion:    4,
+    texto:           "Excelente servicio y habitaciones limpias",
+    fecha_creacion:  new Date(),
+    estado:          "publicada",
+    destacada:       false,
+    respuesta_admin: null,
+    votos_utiles:    [],
+    total_votos:     0
+  });
+  print("RESULTADO: Insertado correctamente ✔\n");
+} catch (e) {
+  print("RESULTADO: Rechazado — ERROR, este documento era válido");
+  print("Motivo: " + e.message + "\n");
+}
+
+print("=== FIN DE PRUEBAS DE VALIDACIÓN ===");
